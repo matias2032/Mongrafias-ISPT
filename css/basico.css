@@ -1452,3 +1452,14 @@ body.dark .pagination button.active {
 .btn-filtro:hover {
     opacity: .8;
 }
+  .tag-destaque {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #f39c12; /* Cor Dourada/Laranja */
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }

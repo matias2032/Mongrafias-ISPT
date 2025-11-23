@@ -69,8 +69,6 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == 'areas_pesquisa') {
 $cursos_full = $conexao->query("SELECT id_curso, nome_curso FROM curso");
 $anos_submissao = $conexao->query("SELECT id_ano_submissao, ano FROM ano_submissao ORDER BY ano DESC");
 $divisoes = $conexao->query("SELECT id_divisao, nome_divisao FROM divisao ORDER BY nome_divisao");
-
-// >>> NOVO: Busca por Supervisores (id_perfil = 4)
 $supervisores = $conexao->query("SELECT id_usuario, nome, apelido FROM usuario WHERE id_perfil = 4 ORDER BY nome");
 
 
@@ -78,7 +76,7 @@ $filtros = [];
 $tipos_bind = ""; // Variável para armazenar os tipos de bind (i, s, etc.)
 
 // ----------------------------------------------------------------------
-// CONSULTA PRINCIPAL DE BUSCA (FILTROS E NOVOS CAMPOS)
+// CONSULTA PRINCIPAL DE BUSCA (INCLUINDO DESTAQUE)
 // ----------------------------------------------------------------------
 
 $sql = "SELECT
@@ -93,15 +91,16 @@ $sql = "SELECT
     c.nome_curso,
     ap.nome_area_pesquisa,
     ans.ano,
-    p.nome_periodo,                   -- ADICIONADO
-    m.caminho_arquivo as link_arquivo
+    p.nome_periodo,
+    m.caminho_arquivo as link_arquivo,
+    m.destaque                           -- NOVO: Campo destaque
 FROM monografia m
 INNER JOIN divisao d ON m.id_divisao = d.id_divisao
 INNER JOIN curso c ON m.id_curso = c.id_curso
 INNER JOIN area_pesquisa ap ON m.id_area_pesquisa = ap.id_area_pesquisa
 INNER JOIN ano_submissao ans ON m.id_ano_submissao = ans.id_ano_submissao
 INNER JOIN usuario u ON m.id_supervisor = u.id_usuario
-INNER JOIN periodo p ON m.id_periodo = p.id_periodo   -- ADICIONADO
+INNER JOIN periodo p ON m.id_periodo = p.id_periodo
 WHERE 1=1";
 
 
@@ -130,33 +129,12 @@ if (!empty($_GET['ano_submissao'])) {
     $filtros[] = $_GET['ano_submissao'];
 }
 
-// >>> NOVO FILTRO: Supervisor (SELECT)
 if (!empty($_GET['supervisor'])) {
     $sql .= " AND m.id_supervisor = ?";
     $tipos_bind .= "i";
     $filtros[] = $_GET['supervisor'];
 }
 
-
-
-// 2. Filtros de TEXTO (Estudante e Tema)
-// >>> NOVO FILTRO: Pesquisa por Nome/Apelido do Estudante
-if (!empty($_GET['estudante'])) {
-    $estudante = "%" . trim($_GET['estudante']) . "%";
-    $sql .= " AND (m.nome_estudante LIKE ? OR m.apelido_estudante LIKE ?)";
-    $tipos_bind .= "ss"; // Dois 's' para nome_estudante LIKE e apelido_estudante LIKE
-    $filtros[] = $estudante;
-    $filtros[] = $estudante;
-}
-
-// >>> NOVO FILTRO: Pesquisa por Tema do Projeto
-if (!empty($_GET['tema_projeto'])) {
-    $tema_projeto = "%" . trim($_GET['tema_projeto']) . "%";
-    $sql .= " AND m.tema LIKE ?";
-    $tipos_bind .= "s";
-    $filtros[] = $tema_projeto;
-}
-// >>> NOVO FILTRO: Período
 if (!empty($_GET['periodo'])) {
     $sql .= " AND m.id_periodo = ?";
     $tipos_bind .= "i";
@@ -164,8 +142,34 @@ if (!empty($_GET['periodo'])) {
 }
 
 
+// [NOVO FILTRO] Filtro de Destaque
+if (isset($_GET['destaque_filtro']) && $_GET['destaque_filtro'] !== '') {
+    $destaque_filtro = intval($_GET['destaque_filtro']);
+    $sql .= " AND m.destaque = ?";
+    $tipos_bind .= "i";
+    $filtros[] = $destaque_filtro;
+}
 
-$sql .= " ORDER BY m.data_submissao DESC"; // Boa prática para ordem
+
+// 2. Filtros de TEXTO (Estudante e Tema)
+if (!empty($_GET['estudante'])) {
+    $estudante = "%" . trim($_GET['estudante']) . "%";
+    $sql .= " AND (m.nome_estudante LIKE ? OR m.apelido_estudante LIKE ?)";
+    $tipos_bind .= "ss";
+    $filtros[] = $estudante;
+    $filtros[] = $estudante;
+}
+
+if (!empty($_GET['tema_projeto'])) {
+    $tema_projeto = "%" . trim($_GET['tema_projeto']) . "%";
+    $sql .= " AND m.tema LIKE ?";
+    $tipos_bind .= "s";
+    $filtros[] = $tema_projeto;
+}
+
+
+// Ordem: Destaques primeiro, depois por data
+$sql .= " ORDER BY m.destaque DESC, m.data_submissao DESC"; 
 
 $stmt = $conexao->prepare($sql);
 if ($stmt === false) {
@@ -174,14 +178,11 @@ if ($stmt === false) {
 
 
 if (!empty($filtros)) {
-    // A função call_user_func_array é a forma segura de passar um array
-    // de argumentos (tipos e valores) para bind_param quando os tipos são variáveis.
-    // O array de argumentos deve começar com a string de tipos.
     $bind_args = array_merge([$tipos_bind], $filtros);
     call_user_func_array([$stmt, 'bind_param'], array_by_ref($bind_args));
 }
 
-// Função auxiliar para passar array por referência (necessário para bind_param com call_user_func_array)
+// Função auxiliar para passar array por referência
 function array_by_ref(&$arr) {
     $refs = [];
     foreach ($arr as $key => $value)
@@ -203,41 +204,211 @@ $periodos = $conexao->query("SELECT id_periodo, nome_periodo FROM periodo ORDER 
     <meta name="viewport"  content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
     <title>Gerenciar Monografias</title>
-    <script src="logout_auto.js"></script>
-    <script src="js/darkmode2.js"></script> 	
     <link rel="stylesheet" href="css/admin.css">
+    <script src="logout_auto.js"></script>
+    <script src="js/darkmode2.js"></script>     
     <script src="js/paginacao.js"></script>
     <script src="js/sidebar.js"></script>
+    <script src="js/dropdown2.js"></script>
 
+    <style>
+        .tag-destaque {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #f39c12;
+            font-weight: bold;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* Estilo dos cards simplificado como no histórico */
+        .cards-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding: 15px;
+        }
+
+        .card {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            position: relative;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 14px rgba(0,0,0,0.12);
+        }
+
+        .card h3 {
+            color: #89b67f;
+            margin: 0 0 10px 0;
+            font-size: 1.2em;
+            line-height: 1.3;
+        }
+
+        .card p {
+            margin: 4px 0;
+            color: #555;
+            font-size: 0.95em;
+            line-height: 1.5;
+        }
+
+        .card strong {
+            color: #333;
+        }
+
+        /* Checkbox no canto superior esquerdo */
+        .card-checkbox {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            transform: scale(1.3);
+            cursor: pointer;
+        }
+
+        /* Container de ações no final do card */
+        .card-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+            flex-wrap: wrap;
+        }
+
+        .card-actions button,
+        .card-actions a button {
+            padding: 8px 16px;
+            font-size: 0.9em;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .card-actions button:first-child {
+            background-color: #3498db;
+            color: #fff;
+        }
+
+        .card-actions button:first-child:hover {
+            background-color: #2c80b4;
+        }
+
+        .card-actions a button {
+            background-color: #89b67f;
+            color: #fff;
+        }
+
+        .card-actions a button:hover {
+            background-color: #6da168;
+        }
+
+        /* Dark mode */
+        body.dark-mode .card {
+            background: #1a1a1a;
+            color: #fff;
+        }
+
+        body.dark-mode .card h3 {
+            color: #89b67f;
+        }
+
+        body.dark-mode .card p {
+            color: #ddd;
+        }
+
+        body.dark-mode .card strong {
+            color: #fff;
+        }
+
+        body.dark-mode .card-actions {
+            border-top-color: #333;
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .card-actions {
+                flex-direction: column;
+            }
+
+            .card-actions button,
+            .card-actions a {
+                width: 100%;
+            }
+
+            .card-actions a button {
+                width: 100%;
+            }
+        }
+    </style>
 </head>
 <body>
 
     <button class="menu-btn">☰</button>
 
-<!-- Overlay -->
 <div class="sidebar-overlay"></div>
 
-    <!-- ===== SIDEBAR ===== -->
     <sidebar class="sidebar">
    <br><br>
         <a href="dashboard.php">Voltar ao Menu Principal</a>
         <a href="cadastrar_monografia.php">Cadastrar Nova Monografia</a>
 
-        <div class="sidebar-footer">
-            <a href="logout.php" title="Sair">
-                <img id="iconelogout" src="icones/logout1.png" alt="Logout">
-            </a>
-            <img class="dark-toggle" id="darkToggle" src="icones/lua.png" alt="Modo Escuro" title="Alternar modo escuro">
+       <div class="sidebar-user-wrapper">
+
+    <div class="sidebar-user" id="usuarioDropdown">
+
+        <div class="usuario-avatar" style="background-color: <?= $corAvatar ?>;">
+            <?= $iniciais ?>
         </div>
+
+        <div class="usuario-dados">
+            <div class="usuario-nome"><?= $nome ?></div>
+            <div class="usuario-apelido"><?= $apelido ?></div>
+        </div>
+
+        <div class="usuario-menu" id="menuPerfil">
+            <a href='editarusuario.php?id_usuario=<?= $usuario['id_usuario'] ?>'>
+            <img class="icone" src="icones/user1.png" alt="Editar" title="Editar" id="iconeuser">  
+            Editar Dados Pessoais</a>
+            <a href="alterar_senha2.php">
+            
+            <img class="icone" src="icones/cadeado1.png" alt="Alterar" title="Alterar"id="iconecadeado"> 
+            Alterar Senha</a>
+            <a href="logout.php">
+            <img class="iconelogout" src="icones/logout1.png" alt="Logout" title="Sair">  
+            Sair</a>
+        </div>
+
+    </div>
+
+    <img class="dark-toggle" id="darkToggle"
+           src="icones/lua.png"
+           alt="Modo Escuro"
+           title="Alternar modo escuro">
+</div>
+
     </sidebar>
 
-    <!-- ===== CONTENT ===== -->
     <div class="content">
         <div class="main">
             <h1>Gerenciar Monografias</h1>
 
-            <!-- ===== FORM FILTROS ===== -->
-            <form method="get" class="filters">
+   <p class="btn-filtro">
+  <img id="imgFiltro" src="icones/filtro1.png" alt="filtro1" title="filtro1" class="icone3" style="cursor:pointer;">
+  Filtros
+</p>
+            <form method="get" class="filters" id="formFiltros">
 
                 <input type="text" name="estudante" placeholder="Nome ou Apelido do Estudante"
                     value="<?= htmlspecialchars($_GET['estudante'] ?? '') ?>">
@@ -245,7 +416,6 @@ $periodos = $conexao->query("SELECT id_periodo, nome_periodo FROM periodo ORDER 
                 <input type="text" name="tema_projeto" placeholder="Tema do Projeto"
                     value="<?= htmlspecialchars($_GET['tema_projeto'] ?? '') ?>">
 
-                <!-- Divisão -->
                 <select name="divisao" id="divisao" onchange="carregarCursos()">
                     <?php if ($divisoes->num_rows > 0): ?>
                         <option value="">Divisão</option>
@@ -263,17 +433,14 @@ $periodos = $conexao->query("SELECT id_periodo, nome_periodo FROM periodo ORDER 
                     <?php endif; ?>
                 </select>
 
-                <!-- Curso -->
                 <select name="curso" id="curso" onchange="carregarAreasPesquisa()" disabled>
                     <option value="">Selecione a divisão primeiro</option>
                 </select>
 
-                <!-- Área de Pesquisa -->
                 <select name="area_pesquisa" id="area_pesquisa" disabled>
                     <option value="">Selecione o curso primeiro</option>
                 </select>
 
-                <!-- Ano de Submissão -->
                 <select name="ano_submissao">
                     <?php if ($anos_submissao->num_rows > 0): ?>
                         <option value="">Ano de Submissão</option>
@@ -291,7 +458,6 @@ $periodos = $conexao->query("SELECT id_periodo, nome_periodo FROM periodo ORDER 
                     <?php endif; ?>
                 </select>
 
-                <!-- Supervisor -->
                 <select name="supervisor" id="supervisor">
                     <?php if ($supervisores->num_rows > 0): ?>
                         <option value="">Supervisor</option>
@@ -313,7 +479,6 @@ $periodos = $conexao->query("SELECT id_periodo, nome_periodo FROM periodo ORDER 
                     <?php endif; ?>
                 </select>
 
-                <!-- Período -->
                 <select name="periodo" id="periodo">
                     <?php if ($periodos->num_rows > 0): ?>
                         <option value="">Período</option>
@@ -330,8 +495,13 @@ $periodos = $conexao->query("SELECT id_periodo, nome_periodo FROM periodo ORDER 
                         <option value="">Nenhum Período</option>
                     <?php endif; ?>
                 </select>
+                
+                <select name="destaque_filtro">
+                    <option value="">Destaques (Todos)</option>
+                    <option value="1" <?= isset($_GET['destaque_filtro']) && $_GET['destaque_filtro'] === '1' ? 'selected' : '' ?>>Somente Destaques (Sim)</option>
+                    <option value="0" <?= isset($_GET['destaque_filtro']) && $_GET['destaque_filtro'] === '0' ? 'selected' : '' ?>>Sem Destaque (Não)</option>
+                </select>
 
-                <!-- Botões -->
                 <button type="submit">Pesquisar</button>
                 <button type="button" onclick="limparFiltros()">Limpar Filtros</button>
 
@@ -339,7 +509,6 @@ $periodos = $conexao->query("SELECT id_periodo, nome_periodo FROM periodo ORDER 
 
             <br>
 
-            <!-- ===== FORM EXCLUSÃO ===== -->
             <form id="deleteForm" method="post" action="excluir_monografias_multiplas.php">
 
                 <div class="count">
@@ -364,52 +533,37 @@ $periodos = $conexao->query("SELECT id_periodo, nome_periodo FROM periodo ORDER 
                             if (!empty($linha['apelido_supervisor'])) {
                                 $nome_supervisor_display .= ' (' . $linha['apelido_supervisor'] . ')';
                             }
+                            $is_destaque = $linha['destaque'] == 1;
                         ?>
                             <div class="card">
-                                <div class="exam-card status-<?= $linha['status_exame'] ?>">
+                                <input type="checkbox" name="monografias_ids[]" value="<?= $linha['id_monografia'] ?>" class="card-checkbox"><br>
 
-                                    <input type="checkbox" name="monografias_ids[]" value="<?= $linha['id_monografia'] ?>">
+                                <?php if ($is_destaque): ?>
+                                    <div class="tag-destaque"> Destaque</div>
+                                <?php endif; ?>
 
-                                    <div class="card-content">
+                                <h3><?= htmlspecialchars($linha['tema']) ?></h3>
 
-                                        <div class="card-title">
-                                            <?= htmlspecialchars($linha['tema']) ?>
-                                        </div>
+                                <p><strong>Estudante:</strong> <?= htmlspecialchars($linha['nome_estudante'] . ' ' . $linha['apelido_estudante']) ?></p>
+                                <p><strong>Supervisor:</strong> <?= htmlspecialchars($nome_supervisor_display) ?></p>
+                                <p><strong>Curso:</strong> <?= htmlspecialchars($linha['nome_curso']) ?></p>
+                                <p><strong>Divisão:</strong> <?= htmlspecialchars($linha['nome_divisao']) ?></p>
+                                <p><strong>Área:</strong> <?= htmlspecialchars($linha['nome_area_pesquisa']) ?></p>
+                                <p><strong>Ano:</strong> <?= htmlspecialchars($linha['ano']) ?></p>
+                                <p><strong>Período:</strong> <?= htmlspecialchars($linha['nome_periodo']) ?></p>
 
-                                        <div class="card-details">
-                                            <div class="card-student">
-                                                <strong style="color: var(--text-color-dark);">Estudante:</strong>
-                                                <?= htmlspecialchars($linha['nome_estudante'] . ' ' . $linha['apelido_estudante']) ?>
-                                            </div>
-
-                                            <p><strong>Área:</strong> <?= htmlspecialchars($linha['nome_area_pesquisa']) ?></p>
-                                            <p><strong>Supervisor:</strong> <?= htmlspecialchars($nome_supervisor_display) ?></p>
-                                            <p><strong>Curso:</strong> <?= htmlspecialchars($linha['nome_curso']) ?></p>
-                                            <p><strong>Divisão:</strong> <?= htmlspecialchars($linha['nome_divisao']) ?></p>
-                                            <p><strong>Ano:</strong> <?= htmlspecialchars($linha['ano']) ?></p>
-                                            <p><strong>Período:</strong> <?= htmlspecialchars($linha['nome_periodo']) ?></p>
-                                        </div>
-                                    </div>
-
-                                    <div class="card-actions">
-                                        <!-- <a href="uploads/monografias/<?= htmlspecialchars($linha['link_arquivo']) ?>" target="_blank">
-                                            <button type="button">Ver PDF</button>
-                                        </a> -->
-                                         <div class="form-group">
-        <?php if ($linha['link_arquivo'] && file_exists($linha['link_arquivo'])): ?>
-            <p><a href="<?= $linha['link_arquivo'] ?>" target="_blank"><button type="button">Abrir PDF atual</button></a></p>
-                <?php else: ?>
-            <p><em>Nenhum arquivo anexado.</em></p>
-        <?php endif; ?>
-      </div>
-
-
-                                        
-                                        <a href="editar_monografia.php?id_monografia=<?= $linha['id_monografia'] ?>">
-                                            <button type="button">Editar</button>
+                                <div class="card-actions">
+                                    <?php if ($linha['link_arquivo'] && file_exists($linha['link_arquivo'])): ?>
+                                        <a href="<?= $linha['link_arquivo'] ?>" target="_blank">
+                                            <button type="button">Abrir PDF</button>
                                         </a>
-                                    </div>
+                                    <?php else: ?>
+                                        <button type="button" disabled>Sem arquivo</button>
+                                    <?php endif; ?>
 
+                                    <a href="editar_monografia.php?id_monografia=<?= $linha['id_monografia'] ?>">
+                                        <button type="button">Editar</button>
+                                    </a>
                                 </div>
                             </div>
                         <?php endwhile; ?>
@@ -422,10 +576,19 @@ $periodos = $conexao->query("SELECT id_periodo, nome_periodo FROM periodo ORDER 
         </div>
     </div>
 
-
-
-
 <script>
+
+      document.getElementById("imgFiltro").addEventListener("click", function() {
+    const form = document.getElementById("formFiltros");
+
+    if (form.style.display === "none" || form.style.display === "") {
+        form.style.display = "block";
+    } else {
+        form.style.display = "none";
+    }
+});
+
+
     // URL base para requisições AJAX
     const BASE_URL = '?ajax=';
     
@@ -458,7 +621,8 @@ $periodos = $conexao->query("SELECT id_periodo, nome_periodo FROM periodo ORDER 
                 
                 // Força o carregamento da área se o curso for válido
                 if(cursoSelect.value) {
-                    const selectedAreaPesquisa = "<?= $_GET['area_pesquisa'] ?? '' ?>";
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const selectedAreaPesquisa = urlParams.get('area_pesquisa') || '';
                     carregarAreasPesquisa(selectedAreaPesquisa);
                 }
 
@@ -507,18 +671,14 @@ $periodos = $conexao->query("SELECT id_periodo, nome_periodo FROM periodo ORDER 
     // Inicialização ao carregar a página
     document.addEventListener("DOMContentLoaded", () => {
         const divisaoSelect = document.getElementById("divisao");
-        const selectedDivisao = divisaoSelect.value || null;
-        const selectedCurso = "<?= $_GET['curso'] ?? '' ?>";
-        const selectedAreaPesquisa = "<?= $_GET['area_pesquisa'] ?? '' ?>";
+        const urlParams = new URLSearchParams(window.location.search);
+        const selectedDivisao = urlParams.get('divisao') || null;
+        const selectedCurso = urlParams.get('curso') || '';
 
         // Inicializa o SELECT de Curso e Área com base nos filtros GET, se existirem.
         if (selectedDivisao) {
             // Se uma divisão estiver selecionada, carrega os cursos e, em seguida, as áreas
-            carregarCursos(selectedCurso, () => {
-                if (selectedCurso) {
-                    carregarAreasPesquisa(selectedAreaPesquisa); 
-                }
-            });
+            carregarCursos(selectedCurso);
         }
         
         // Lógica de Exclusão Múltipla

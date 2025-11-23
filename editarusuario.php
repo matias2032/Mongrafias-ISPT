@@ -166,6 +166,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <link rel="stylesheet" href="css/admin.css">
       <script src="js/darkmode2.js"></script>
       <script src="js/sidebar.js"></script>
+        <script src="js/dropdown2.js"></script>
 </head>
 <body>
 
@@ -185,10 +186,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php else: ?>
 <a href="ver_monografias.php">Voltar ás Monografias</a>
          <?php endif; ?>
-    <div class="sidebar-footer">
+   <div class="sidebar-user-wrapper">
 
-        <img class="dark-toggle" id="darkToggle" src="icones/lua.png" alt="Modo Escuro" title="Alternar modo escuro">
+    <div class="sidebar-user" id="usuarioDropdown">
+
+        <div class="usuario-avatar" style="background-color: <?= $corAvatar ?>;">
+            <?= $iniciais ?>
+        </div>
+
+        <div class="usuario-dados">
+            <div class="usuario-nome"><?= $nome ?></div>
+            <div class="usuario-apelido"><?= $apelido ?></div>
+        </div>
+
+        <div class="usuario-menu" id="menuPerfil">
+            <a href='editarusuario.php?id_usuario=<?= $usuario['id_usuario'] ?>'>
+            <img class="icone" src="icones/user1.png" alt="Editar" title="Editar" id="iconeuser">  
+            Editar Dados Pessoais</a>
+            <a href="alterar_senha2.php">
+            
+            <img class="icone" src="icones/cadeado1.png" alt="Alterar" title="Alterar"id="iconecadeado"> 
+            Alterar Senha</a>
+            <a href="logout.php">
+            <img class="iconelogout" src="icones/logout1.png" alt="Logout" title="Sair">  
+            Sair</a>
+        </div>
+
     </div>
+
+    <img class="dark-toggle" id="darkToggle"
+           src="icones/lua.png"
+           alt="Modo Escuro"
+           title="Alternar modo escuro">
+</div>
+
+
+
 </sidebar>
 
 

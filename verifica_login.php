@@ -1,18 +1,3 @@
-<?php
-// // verifica_login.php
-// session_start();
-// if (session_status() === PHP_SESSION_NONE) {
-//    // Inicia a sessão somente se ainda não estiver iniciada
-// }
-
-// // Verifica se o usuário está logado
-// if (!isset($_SESSION['usuario'])) {
-//     header("Location: login.php");
-//     exit;
-// }
-
-// $usuario = $_SESSION['usuario']; // Deixa disponível para uso na página
-?>
 
 
 

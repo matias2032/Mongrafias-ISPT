@@ -117,6 +117,7 @@ $idiomas_lista = $conexao->query("SELECT id_idioma, nome_idioma FROM idioma");
           <script src="logout_auto.js"></script>
           <link rel="stylesheet" href="css/admin.css">
                <script src="js/darkmode2.js"></script>
+                 <script src="js/dropdown2.js"></script>
                <script src="js/sidebar.js"></script>
 </head>
 <body>
@@ -130,10 +131,41 @@ $idiomas_lista = $conexao->query("SELECT id_idioma, nome_idioma FROM idioma");
 
        <br><br>
         <a href="usuarios.php">Voltar aos usuários</a>
-           <div class="sidebar-footer">
-        <a href="logout.php" title="Sair"><img id="iconelogout" src="icones/logout1.png" alt="Logout"></a>
-        <img class="dark-toggle" id="darkToggle" src="icones/lua.png" alt="Modo Escuro" title="Alternar modo escuro">
-      </div>
+          <div class="sidebar-user-wrapper">
+
+    <div class="sidebar-user" id="usuarioDropdown">
+
+        <div class="usuario-avatar" style="background-color: <?= $corAvatar ?>;">
+            <?= $iniciais ?>
+        </div>
+
+        <div class="usuario-dados">
+            <div class="usuario-nome"><?= $nome ?></div>
+            <div class="usuario-apelido"><?= $apelido ?></div>
+        </div>
+
+        <div class="usuario-menu" id="menuPerfil">
+            <a href='editarusuario.php?id_usuario=<?= $usuario['id_usuario'] ?>'>
+            <img class="icone" src="icones/user1.png" alt="Editar" title="Editar" id="iconeuser">  
+            Editar Dados Pessoais</a>
+            <a href="alterar_senha2.php">
+            
+            <img class="icone" src="icones/cadeado1.png" alt="Alterar" title="Alterar"id="iconecadeado"> 
+            Alterar Senha</a>
+            <a href="logout.php">
+            <img class="iconelogout" src="icones/logout1.png" alt="Logout" title="Sair">  
+            Sair</a>
+        </div>
+
+    </div>
+
+    <img class="dark-toggle" id="darkToggle"
+           src="icones/lua.png"
+           alt="Modo Escuro"
+           title="Alternar modo escuro">
+</div>
+
+
 </sidebar>
     <?php if ($mensagem): ?>
         <div class="mensagem <?= str_contains($mensagem, '✅') ? 'success' : 'error' ?>">

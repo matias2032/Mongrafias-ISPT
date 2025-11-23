@@ -1,6 +1,7 @@
 <?php
 include "conexao.php";
 include "verifica_login.php";
+include "info_usuario.php";
 
 header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 header("Pragma: no-cache");
@@ -137,6 +138,8 @@ $res = $stmt->get_result();
 <script src="js/paginacao.js"></script>
 <script src="js/sidebar.js"></script>
 
+<link rel="stylesheet" href="css/admin.css">
+  <script src="js/dropdown2.js"></script>
 </head>
 <body>
 
@@ -148,16 +151,54 @@ $res = $stmt->get_result();
 <sidebar class="sidebar">
 <br><br>
     <a href="dashboard.php">Voltar ao Menu Principal</a>
-    <div class="sidebar-footer">
-        <a href="logout.php" title="Sair"><img id="iconelogout" src="icones/logout1.png" alt="Logout"></a>
-        <img class="dark-toggle" id="darkToggle" src="icones/lua.png" alt="Modo Escuro" title="Alternar modo escuro">
+   <div class="sidebar-user-wrapper">
+
+    <div class="sidebar-user" id="usuarioDropdown">
+
+        <div class="usuario-avatar" style="background-color: <?= $corAvatar ?>;">
+            <?= $iniciais ?>
+        </div>
+
+        <div class="usuario-dados">
+            <div class="usuario-nome"><?= $nome ?></div>
+            <div class="usuario-apelido"><?= $apelido ?></div>
+        </div>
+
+        <div class="usuario-menu" id="menuPerfil">
+            <a href='editarusuario.php?id_usuario=<?= $usuario['id_usuario'] ?>'>
+            <img class="icone" src="icones/user1.png" alt="Editar" title="Editar" id="iconeuser">  
+            Editar Dados Pessoais</a>
+            <a href="alterar_senha2.php">
+            
+            <img class="icone" src="icones/cadeado1.png" alt="Alterar" title="Alterar"id="iconecadeado"> 
+            Alterar Senha</a>
+            <a href="logout.php">
+            <img class="iconelogout" src="icones/logout1.png" alt="Logout" title="Sair">  
+            Sair</a>
+        </div>
+
     </div>
-</sidebar>
+
+    <img class="dark-toggle" id="darkToggle"
+           src="icones/lua.png"
+           alt="Modo Escuro"
+           title="Alternar modo escuro">
+</div>
+
+    </sidebar>
+
+
 
 <div class="main">
   <h1>Histórico de Submissões de Monografias</h1>
 
-  <form method="get" class="filters">
+  
+   <p class="btn-filtro">
+  <img id="imgFiltro" src="icones/filtro1.png" alt="filtro1" title="filtro1" class="icone3" style="cursor:pointer;">
+  Filtros
+</p>
+
+  <form method="get" class="filters" id="formFiltros">
     <input type="text" name="estudante" placeholder="Nome ou Apelido do Estudante" value="<?= htmlspecialchars($_GET['estudante'] ?? '') ?>">
     <input type="text" name="tema_projeto" placeholder="Tema do Projeto" value="<?= htmlspecialchars($_GET['tema_projeto'] ?? '') ?>">
 
@@ -216,20 +257,33 @@ $res = $stmt->get_result();
     <?php while ($r = $res->fetch_assoc()): ?>
       <div class="card">
         <h3><?= htmlspecialchars($r['tema']) ?></h3>
-        <p><strong>Estudante:</strong> <?= htmlspecialchars($r['nome_estudante'].' '.$r['apelido_estudante']) ?></p>
-        <p><strong>Supervisor:</strong> <?= htmlspecialchars($r['nome_supervisor'].' '.$r['apelido_supervisor']) ?></p>
-        <p><strong>Curso:</strong> <?= htmlspecialchars($r['nome_curso']) ?></p>
-        <p><strong>Divisão:</strong> <?= htmlspecialchars($r['nome_divisao']) ?></p>
-        <p><strong>Área:</strong> <?= htmlspecialchars($r['nome_area_pesquisa']) ?></p>
-        <p><strong>Ano:</strong> <?= htmlspecialchars($r['ano']) ?> | <strong>Período:</strong> <?= htmlspecialchars($r['nome_periodo']) ?></p>
-        <p><strong>Funcionário:</strong> <?= htmlspecialchars($r['funcionario']) ?></p>
-        <p><strong>Submetida em:</strong> <?= date("d/m/Y", strtotime($r['data_submissao'])) ?></p>
+    <strong>Estudante:</strong> <?= htmlspecialchars($r['nome_estudante'].' '.$r['apelido_estudante']) ?><br>
+        <strong>Supervisor:</strong> <?= htmlspecialchars($r['nome_supervisor'].' '.$r['apelido_supervisor']) ?><br>
+        <strong>Curso:</strong> <?= htmlspecialchars($r['nome_curso']) ?><br>
+        <strong>Divisão:</strong> <?= htmlspecialchars($r['nome_divisao']) ?><br>
+        <strong>Área:</strong> <?= htmlspecialchars($r['nome_area_pesquisa']) ?><br>
+        <strong>Ano:</strong> <?= htmlspecialchars($r['ano']) ?> <br>
+         <strong>Período:</strong> <?= htmlspecialchars($r['nome_periodo']) ?><br>
+        <strong>Funcionário:</strong> <?= htmlspecialchars($r['funcionario']) ?><br>
+        <strong>Submetida em:</strong> <?= date("d/m/Y", strtotime($r['data_submissao'])) ?>
       </div>
     <?php endwhile; ?>
   </div>
 </div>
 
 <script>
+
+      document.getElementById("imgFiltro").addEventListener("click", function() {
+    const form = document.getElementById("formFiltros");
+
+    if (form.style.display === "none" || form.style.display === "") {
+        form.style.display = "block";
+    } else {
+        form.style.display = "none";
+    }
+});
+
+
 const BASE_URL = '?ajax=';
 
 // Carregar cursos conforme divisão

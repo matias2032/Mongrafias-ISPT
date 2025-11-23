@@ -10,7 +10,7 @@ header("Cache-Control: post-check=0, pre-check=0", false);
 header("Pragma: no-cache");
 
 // ----------------------------------------------------------------------
-// LÓGICA AJAX PARA CARREGAMENTO DINÂMICO DOS SELECTS (SEM ALTERAÇÃO)
+// LÓGICA AJAX PARA CARREGAMENTO DINÂMICO DOS SELECTS
 // ----------------------------------------------------------------------
 
 // 1. Função para carregar CURSOS via DIVISÃO
@@ -70,8 +70,9 @@ INNER JOIN area_pesquisa ap ON m.id_area_pesquisa = ap.id_area_pesquisa
 INNER JOIN ano_submissao ans ON m.id_ano_submissao = ans.id_ano_submissao
 INNER JOIN usuario u ON m.id_supervisor = u.id_usuario
 INNER JOIN periodo p ON m.id_periodo = p.id_periodo
-WHERE 1=1";
+WHERE m.status_monografia = 'aprovada'"; // Garante que só mostra aprovadas
 
+// Filtros Padrão
 if (!empty($_GET['divisao'])) {
     $sql_base .= " AND m.id_divisao = ?";
     $tipos_bind .= "i";
@@ -123,6 +124,26 @@ if (!empty($_GET['periodo'])) {
     $filtros[] = $_GET['periodo'];
 }
 
+// [NOVO] Filtro de Destaque (Vindo do botão "Ver Todos" da Home)
+if (isset($_GET['destaque_filtro']) && $_GET['destaque_filtro'] !== '') {
+    $destaque_filtro = intval($_GET['destaque_filtro']);
+    $sql_base .= " AND m.destaque = ?";
+    $tipos_bind .= "i";
+    $filtros[] = $destaque_filtro;
+}
+
+// [NOVO] Filtro Específico de ID (Vindo do clique num Card da Home)
+// Se este filtro existir, focamos apenas nessa monografia (ou a colocamos no topo, 
+// mas para simplificar a visualização detalhada, vamos filtrar por ela se solicitado especificamente).
+// Se preferir que mostre todas mas com essa no topo, a lógica de ordenação muda. 
+// Aqui vou assumir que se clicou no destaque, quer ver o destaque (filtro).
+if (!empty($_GET['destaque_id'])) {
+    $sql_base .= " AND m.id_monografia = ?";
+    $tipos_bind .= "i";
+    $filtros[] = $_GET['destaque_id'];
+}
+
+
 // ==================== PAGINAÇÃO SERVER-SIDE ====================
 $limite = 12;
 $pagina_atual = isset($_GET['pagina']) ? (int)$_GET['pagina'] : 1;
@@ -142,6 +163,7 @@ $total_paginas = ceil($total_registros / $limite);
 $stmt_count->close();
 
 // 2️⃣ Consulta principal com LIMIT/OFFSET
+// Adicionei m.destaque na seleção para usar no HTML
 $sql = "SELECT
     m.id_monografia,
     m.tema,
@@ -156,8 +178,9 @@ $sql = "SELECT
     ans.ano,
     p.nome_periodo,
     m.data_submissao,
-    m.caminho_arquivo AS link_arquivo
-" . $sql_base . " ORDER BY m.data_submissao DESC LIMIT ? OFFSET ?";
+    m.caminho_arquivo AS link_arquivo,
+    m.destaque
+" . $sql_base . " ORDER BY m.destaque DESC, m.data_submissao DESC LIMIT ? OFFSET ?";
 
 
 $stmt = $conexao->prepare($sql);
@@ -182,7 +205,7 @@ $stmt->execute();
 $resultado = $stmt->get_result();
 $quantidade = $resultado->num_rows;
 
-// 🔸 Outras consultas (sem alteração)
+// 🔸 Outras consultas
 $periodos = $conexao->query("SELECT id_periodo, nome_periodo FROM periodo ORDER BY id_periodo ASC");
 
 $usuarioLogado = $_SESSION['usuario'] ?? null;
@@ -246,7 +269,7 @@ while ($r = $resD->fetch_assoc()) {
 }
 
 /* ==========================================================
-   🔹 PAGINAÇÃO HTML (para o final do corpo)
+   🔹 PAGINAÇÃO HTML
 ========================================================== */
 $query_string = '';
 foreach ($_GET as $key => $value) {
@@ -255,26 +278,13 @@ foreach ($_GET as $key => $value) {
     }
 }
 
-// // Depois de exibir os cards:
-// echo '<div class="pagination" style="text-align:center;margin-top:20px;">';
-// if ($pagina_atual > 1) {
-//     echo '<a class="page-btn" href="?pagina=1' . $query_string . '">« Primeira</a> ';
-//     echo '<a class="page-btn" href="?pagina=' . ($pagina_atual - 1) . $query_string . '">‹ Anterior</a> ';
-// }
-// echo '<span style="margin:0 10px;">Página ' . $pagina_atual . ' de ' . $total_paginas . '</span>';
-// if ($pagina_atual < $total_paginas) {
-//     echo '<a class="page-btn" href="?pagina=' . ($pagina_atual + 1) . $query_string . '">Próxima ›</a> ';
-//     echo '<a class="page-btn" href="?pagina=' . $total_paginas . $query_string . '">Última »</a>';
-// }
-// echo '</div>';
-
 /* ==========================================================
    🔹 FEEDBACK: INSERIR E APAGAR
 ========================================================== */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    header('Content-Type: application/json'); // retorna JSON para o JS
+    header('Content-Type: application/json');
 
-    // Inserir novo comentário
+    // Inserir
     if (isset($_POST['enviar_feedback']) && !empty($_POST['texto_feedback']) && !empty($_POST['id_monografia'])) {
         if ($usuarioLogado) {
             $texto = trim($_POST['texto_feedback']);
@@ -285,7 +295,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $id_feedback = $stmt->insert_id;
             $stmt->close();
 
-            // Retornar o novo comentário completo (para injetar no HTML)
             $dados = [
                 'id_feedback' => $id_feedback,
                 'nome' => $usuarioLogado['nome'],
@@ -300,7 +309,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    // Apagar comentário
+    // Apagar
     if (isset($_POST['delete_feedback'])) {
         $idFeedback = intval($_POST['delete_feedback']);
         $stmt = $conexao->prepare("DELETE FROM feedback WHERE id_feedback = ? AND id_usuario = ?");
@@ -311,11 +320,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 }
-
-
 ?>
-
-
 
 <!DOCTYPE html>
 <html lang="pt">
@@ -330,7 +335,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script src="js/dropdown.js"></script>
 <script src="js/paginacao.js"></script>
                      <script src="js/sidebar2.js"></script> 
-
+<style>
+    /* Estilo simples para o ícone de estrela no card */
+    .star-icon { color: #f1c40f; margin-right: 5px; font-size: 1.2em; vertical-align: middle; }
+</style>
 </head>
 <body>
 
@@ -338,17 +346,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <header class="topbar">
   <div class="container2">
 
-    <!-- 🔹 BOTÃO MENU MOBILE (visível apenas em mobile - ESQUERDA) -->
     <button class="menu-btn-mobile" id="menuBtnMobile">&#9776;</button>
 
-    <!-- 🟠 LOGO DA EMPRESA (CENTRO no mobile) -->
     <div class="logo">
       <a href="index.php">
         <img src="icones/logo.png" alt="Logo do ISPT" class="logo-img">
       </a>
     </div>
 
-    <!-- 🔹 LINKS PRINCIPAIS (Desktop) -->
     <div class="links-menu">
       <a href="index.php"><img class="icone2" src="icones/casa1.png" alt="Início" title="casa"> Início</a>
       
@@ -375,12 +380,9 @@ Histórico de Uploads
       <?php endif; ?>
     </div>
 
-    <!-- 🔹 AÇÕES USUÁRIO (sempre visível) -->
     <div class="acoes-usuario">
-      <!-- Dark Mode Toggle -->
       <img class="dark-toggle" id="darkToggle" src="icones/lua.png" alt="Alternar modo escuro" title="Alternar modo escuro">
 
-      <!-- Usuário ou Login -->
       <?php if ($usuarioLogado): ?>
         <?php
           $nome2 = $usuarioLogado['nome'] ?? '';
@@ -396,7 +398,6 @@ Histórico de Uploads
           }
           $corAvatar = gerarCor($nomeCompleto);
         ?>
-        <!-- Desktop: Mostra perfil completo -->
         <div class="usuario-info usuario-desktop" id="usuarioDropdown">
           <div class="usuario-dropdown">
             <div class="usuario-iniciais" style="background-color: <?= $corAvatar ?>;">
@@ -406,9 +407,6 @@ Histórico de Uploads
     <div class="usuario-nome"><?= $nomeCompleto ?></div>
     <div class="usuario-email"><?= $usuarioLogado["email"] ?></div>
 </div>
-
-
-
 
             <div class="menu-perfil" id="menuPerfil">
               <a href='editarusuario.php?id_usuario=<?= $usuarioLogado['id_usuario'] ?>'>
@@ -424,13 +422,11 @@ Histórico de Uploads
           </div>
         </div>
       <?php else: ?>
-        <!-- <a href="login.php" class="login-link-mobile">Entrar</a> -->
-      <?php endif; ?>
+        <?php endif; ?>
     </div>
   </div>
 </header>
 
-<!-- 🔹 MENU MOBILE SIDEBAR -->
 <nav id="mobileMenu" class="nav-mobile-sidebar hidden">
   <div class="sidebar-header">
     <button class="close-btn" id="closeMobileMenu">&times;</button>
@@ -463,9 +459,6 @@ Histórico de Downloads</a></li>
       <li><a href="login.php"><img class="icone2" src="icones/login1.png" alt="login" title="login"> Fazer Login  </a></li>
     <?php endif; ?>
   </ul>
-
-
-  
 </nav>
 
 
@@ -554,7 +547,11 @@ Histórico de Downloads</a></li>
     <?php endif; ?>
 </select>
 
-
+    <select name="destaque_filtro">
+        <option value="">Todos (Destaques e Normais)</option>
+        <option value="1" <?= isset($_GET['destaque_filtro']) && $_GET['destaque_filtro'] === '1' ? 'selected' : '' ?>>Somente Destaques</option>
+        <option value="0" <?= isset($_GET['destaque_filtro']) && $_GET['destaque_filtro'] === '0' ? 'selected' : '' ?>>Sem Destaque</option>
+    </select>
 
     <input type="text" name="tema" placeholder="Pesquisar tema..." value="<?= htmlspecialchars($_GET['tema'] ?? '') ?>">
     <button type="submit" id="pesquisa"> Pesquisar</button>
@@ -569,10 +566,16 @@ Histórico de Downloads</a></li>
   <div class="cards-container">
     <div id="pagination" class="pagination"></div>
 
- <?php while ($m = $resultado->fetch_assoc()): ?>
+ <?php while ($m = $resultado->fetch_assoc()): 
+    // Verifica se é destaque
+    $is_destaque = isset($m['destaque']) && $m['destaque'] == 1;
+ ?>
   <div class="card">
     <div class="card-content">
-      <h3><?= htmlspecialchars($m['tema']) ?></h3>
+      <h3>
+        <?php if($is_destaque): ?> <div class="tag-destaque">Destaque</div><?php endif; ?>
+        <?= htmlspecialchars($m['tema']) ?>
+      </h3>
       <p><strong>Autor:</strong> <?= htmlspecialchars($m['nome_estudante'] . ' ' . $m['apelido_estudante']) ?></p>
       <p><strong>Docente:</strong> <?= htmlspecialchars($m['nome_supervisor'] . ' ' . $m['apelido_supervisor']) ?></p>
       <p><strong>Divisão:</strong> <?= htmlspecialchars($m['nome_divisao']) ?></p>
@@ -589,7 +592,6 @@ Histórico de Downloads</a></li>
       <a class="btn-download" href="?download=<?= urlencode($m['id_monografia']) ?>">Baixar</a>
     </div>
       <?php if ($usuarioLogado): ?>
-    <!-- ==================== SEÇÃO DE COMENTÁRIOS ==================== -->
     <div class="comentarios" style="margin-top:25px;padding:15px;border-top:1px solid #ddd;">
       <h4>Comentários</h4>
       <div class="lista-comentarios" id="comentarios-<?= $m['id_monografia'] ?>">
@@ -644,12 +646,9 @@ Histórico de Downloads</a></li>
       <?php else: ?>
         <p style="color:#777;">Entre para deixar um comentário.</p>
       <?php endif; ?>
-    </div> <!-- fecha .comentarios -->
-        <?php endif; ?>
+    </div> <?php endif; ?>
 
-  </div> <!-- fecha .card -->
-<?php endwhile; ?> <!-- fecha o laço das monografias -->
-
+  </div> <?php endwhile; ?> ```
 
 
 <script>

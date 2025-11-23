@@ -10,7 +10,7 @@ if (!isset($_SESSION['usuario'])) {
     header("Location: login.php");
     exit;
 }
-
+$usuario = $_SESSION['usuario']; // Garante acesso aos dados do utilizador logado
 
 /* ===========================================================
    AJAX - Carregar Cursos e Áreas dinamicamente
@@ -70,6 +70,7 @@ $redirecionar = false;
    Buscar dados atuais da monografia
 =========================================================== */
 function carregarDadosMonografia($conexao, $id_monografia) {
+    // SELECT m.* já traz a coluna 'destaque' se ela existir na tabela
     $sql = "SELECT m.*, c.id_divisao 
             FROM monografia m
             INNER JOIN curso c ON m.id_curso = c.id_curso
@@ -100,10 +101,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $id_supervisor = intval($_POST['supervisor']);
     $remover_arquivo = isset($_POST['remover_arquivo']);
     
-    // 👇 MOVER PARA AQUI
+    // [NOVO] Lógica do Destaque
+    // Se for Admin (perfil 1), pega o valor do POST. Se não for, mantém o valor atual do banco.
+    if ($usuario['id_perfil'] == 1) {
+        $destaque = isset($_POST['destaque']) ? 1 : 0;
+    } else {
+        $destaque = $monografia['destaque'];
+    }
+
     $novo_arquivo = $_FILES['arquivo']['name'] ?? "";
     
-    // ✅ Verificação de alterações
+    // ✅ Verificação de alterações (Incluindo Destaque)
     $houveAlteracao = (
         $tema !== $monografia['tema'] ||
         $nome_estudante !== $monografia['nome_estudante'] ||
@@ -114,8 +122,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $id_ano_submissao != $monografia['id_ano_submissao'] ||
         $id_periodo != $monografia['id_periodo'] ||
         $id_supervisor != $monografia['id_supervisor'] ||
-        (!empty($novo_arquivo)) || // upload novo
-        (!empty($remover_arquivo) && !empty($monografia['caminho_arquivo'])) // pediu remoção
+        $destaque != $monografia['destaque'] || // [NOVO] Verifica alteração no destaque
+        (!empty($novo_arquivo)) || 
+        (!empty($remover_arquivo) && !empty($monografia['caminho_arquivo']))
     );
 
     if (!$houveAlteracao) {
@@ -125,7 +134,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $caminho_atual = $monografia['caminho_arquivo'];
         $novo_caminho = $caminho_atual;
         $upload_realizado = false;
-
 
         // Se pediu para remover o arquivo
         if ($remover_arquivo && $caminho_atual && file_exists($caminho_atual)) {
@@ -154,22 +162,29 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         }
 
         if (empty($mensagem)) {
+            // [ATUALIZADO] Adicionado campo `destaque` na query
             $sql_update = "UPDATE monografia 
                 SET tema=?, nome_estudante=?, apelido_estudante=?, 
                     id_curso=?, id_area_pesquisa=?, id_divisao=?, 
-                    id_ano_submissao=?, id_periodo=?, id_supervisor=?, caminho_arquivo=?
+                    id_ano_submissao=?, id_periodo=?, id_supervisor=?, 
+                    caminho_arquivo=?, destaque=?
                 WHERE id_monografia=?";
+            
             $stmt_up = $conexao->prepare($sql_update);
-            $stmt_up->bind_param("sssiiiiissi",
+            
+            // [ATUALIZADO] Adicionado 'i' extra no bind_param e a variável $destaque
+            // sssiiiiissii (12 parametros)
+            $stmt_up->bind_param("sssiiiiissii",
                 $tema, $nome_estudante, $apelido_estudante,
                 $id_curso, $id_area_pesquisa, $id_divisao,
                 $id_ano_submissao, $id_periodo, $id_supervisor,
-                $novo_caminho, $id_monografia
+                $novo_caminho, $destaque, $id_monografia
             );
+            
             if ($stmt_up->execute()) {
                 $mensagem = "Monografia atualizada com sucesso!";
                 $tipo_mensagem = "success";
-                    $redirecionar = true;
+                $redirecionar = true;
                 // Recarrega dados atualizados imediatamente
                 $monografia = carregarDadosMonografia($conexao, $id_monografia);
             } else {
@@ -205,6 +220,7 @@ $supervisores = $conexao->query("SELECT id_usuario, nome, apelido FROM usuario W
 <script src="logout_auto.js"></script>
 <script src="js/darkmode2.js"></script>
 <script src="js/sidebar.js"></script>
+  <script src="js/dropdown2.js"></script>
 
 <style>
 .drop-zone {
@@ -215,24 +231,56 @@ $supervisores = $conexao->query("SELECT id_usuario, nome, apelido FROM usuario W
 .drop-zone.drag-over{background:#d0e7f7;border-color:#2980b9;}
 .file-input{display:none;}
 .file-name{font-weight:bold;color:#27ae60;}
+/* Estilo para o Checkbox de Destaque */
+.checkbox-wrapper {
+    display: flex; align-items: center; gap: 10px; margin: 15px 0; padding: 10px;
+    background-color: rgba(52, 152, 219, 0.1); border-radius: 5px; border-left: 4px solid #3498db;
+}
+.checkbox-wrapper input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
+.checkbox-wrapper label { margin-bottom: 0 !important; cursor: pointer; font-weight: bold; color: #2c3e50; }
 </style>
 </head>
 <body>
 
-
-
     <button class="menu-btn">☰</button>
-
-<!-- Overlay -->
-<div class="sidebar-overlay"></div>
+    <div class="sidebar-overlay"></div>
 
 <sidebar class="sidebar">
 <br><br>
   <a href="gerenciar_monografias.php">Voltar á área de Monografias</a>
-  <div class="sidebar-footer">
-      <a href="logout.php" title="Sair"><img id="iconelogout" src="icones/logout1.png"></a>
-      <img class="dark-toggle" id="darkToggle" src="icones/lua.png" title="Modo Escuro">
-  </div>
+ <div class="sidebar-user-wrapper">
+
+    <div class="sidebar-user" id="usuarioDropdown">
+
+        <div class="usuario-avatar" style="background-color: <?= $corAvatar ?>;">
+            <?= $iniciais ?>
+        </div>
+
+        <div class="usuario-dados">
+            <div class="usuario-nome"><?= $nome ?></div>
+            <div class="usuario-apelido"><?= $apelido ?></div>
+        </div>
+
+        <div class="usuario-menu" id="menuPerfil">
+            <a href='editarusuario.php?id_usuario=<?= $usuario['id_usuario'] ?>'>
+            <img class="icone" src="icones/user1.png" alt="Editar" title="Editar" id="iconeuser">  
+            Editar Dados Pessoais</a>
+            <a href="alterar_senha2.php">
+            
+            <img class="icone" src="icones/cadeado1.png" alt="Alterar" title="Alterar"id="iconecadeado"> 
+            Alterar Senha</a>
+            <a href="logout.php">
+            <img class="iconelogout" src="icones/logout1.png" alt="Logout" title="Sair">  
+            Sair</a>
+        </div>
+
+    </div>
+
+    <img class="dark-toggle" id="darkToggle"
+           src="icones/lua.png"
+           alt="Modo Escuro"
+           title="Alternar modo escuro">
+</div>
 </sidebar>
 
 <div class="content">
@@ -324,11 +372,17 @@ $supervisores = $conexao->query("SELECT id_usuario, nome, apelido FROM usuario W
           <p id="fileName" class="file-name"></p>
       </div>
 
+      <?php if ($usuario['id_perfil'] == 1): ?>
+        <div class="checkbox-wrapper">
+            <input type="checkbox" name="destaque" id="destaque" value="1" <?= $monografia['destaque'] == 1 ? 'checked' : '' ?>>
+            <label for="destaque">⭐ Definir como Monografia em Destaque</label>
+        </div>
+      <?php endif; ?>
+
       <button type="submit">Salvar Alterações</button>
     </form>
   </div>
 </div>
-
 
 <?php if ($redirecionar): ?>
 <script>
@@ -342,6 +396,15 @@ $supervisores = $conexao->query("SELECT id_usuario, nome, apelido FROM usuario W
 <script>
   window.preSelectedCurso = "<?= $monografia['id_curso'] ?>";
   window.preSelectedArea = "<?= $monografia['id_area_pesquisa'] ?>";
+  
+  // Script simples para visualização do arquivo selecionado no Drag & Drop
+  const fileInput = document.getElementById('monografia_file');
+  const fileNameDisplay = document.getElementById('fileName');
+  fileInput.addEventListener('change', function() {
+      if(this.files && this.files.length > 0) {
+          fileNameDisplay.textContent = "Selecionado: " + this.files[0].name;
+      }
+  });
 </script>
 <script src="js/monografia_selects.js"></script>
 </body>

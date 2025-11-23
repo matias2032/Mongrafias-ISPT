@@ -2,7 +2,7 @@
 
 include "conexao.php";
 include "verifica_login.php"; 
-
+include "info_usuario.php";
 
 header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 header("Cache-Control: post-check=0, pre-check=0", false);
@@ -13,7 +13,7 @@ header("Location: login.php");
 exit;
 }
 ?>
-<?php include "info_usuario.php"; ?>
+
 <!DOCTYPE html>
 <html lang="pt">
 <head>
@@ -26,6 +26,7 @@ exit;
     <link rel="stylesheet" href="css/admin.css">
      <script src="js/darkmode2.js"></script>
 <script src="js/sidebar.js"></script>
+<script src="js/dropdown2.js"></script>
    
 </head>
 <body>
@@ -48,10 +49,43 @@ exit;
                 </div>
                     </a>
 
-                                        <div class="sidebar-footer">
-        <a href="logout.php" title="Sair"><img id="iconelogout" src="icones/logout1.png" alt="Logout"></a>
-        <img class="dark-toggle" id="darkToggle" src="icones/lua.png" alt="Modo Escuro" title="Alternar modo escuro">
-      </div>
+<div class="sidebar-user-wrapper">
+
+    <div class="sidebar-user" id="usuarioDropdown">
+
+        <div class="usuario-avatar" style="background-color: <?= $corAvatar ?>;">
+            <?= $iniciais ?>
+        </div>
+
+        <div class="usuario-dados">
+            <div class="usuario-nome"><?= $nome ?></div>
+            <div class="usuario-apelido"><?= $apelido ?></div>
+        </div>
+
+        <div class="usuario-menu" id="menuPerfil">
+            <a href='editarusuario.php?id_usuario=<?= $usuario['id_usuario'] ?>'>
+            <img class="icone" src="icones/user1.png" alt="Editar" title="Editar" id="iconeuser">  
+            Editar Dados Pessoais</a>
+            <a href="alterar_senha2.php">
+            
+            <img class="icone" src="icones/cadeado1.png" alt="Alterar" title="Alterar"id="iconecadeado"> 
+            Alterar Senha</a>
+            <a href="logout.php">
+            <img class="iconelogout" src="icones/logout1.png" alt="Logout" title="Sair">  
+            Sair</a>
+        </div>
+
+    </div>
+
+    <img class="dark-toggle" id="darkToggle"
+           src="icones/lua.png"
+           alt="Modo Escuro"
+           title="Alternar modo escuro">
+</div>
+
+
+
+      
 
     </sidebar>
 

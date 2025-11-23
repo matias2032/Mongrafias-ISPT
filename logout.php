@@ -14,7 +14,7 @@ session_write_close();
 if ($id_perfil == 1) {
     header("Location: login.php");
 } else {
-    header("Location: ver_monografias.php");
+    header("Location: index.php");
 }
 exit;
 ?>
