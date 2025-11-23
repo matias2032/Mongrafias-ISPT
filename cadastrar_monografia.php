@@ -418,7 +418,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <?php if ($id_perfil == 1): ?>
                 <div class="form-group checkbox-wrapper">
                     <input type="checkbox" name="destaque" id="destaque" value="1">
-                    <label for="destaque">⭐ Marcar esta Monografia como Destaque</label>
+                    <label for="destaque"> Marcar esta Monografia como Destaque</label>
                 </div>
             <?php endif; ?>
 

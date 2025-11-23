@@ -364,10 +364,9 @@ if ($banner_ativo) {
                 </div>
                 <div class="footer-section">
                     <h4>Recursos</h4>
-                    <a href="#">Propinas</a>
-                    <a href="#">Formulários</a>
-                    <a href="#">E-SURA</a>
-                    <a href="#">Moodle ISPT</a>
+                            <a href="https://propinas.ispt.ac.mz/login.php">Propinas</a>
+                    <a href="https://esura.ispt.ac.mz/esura_ispt/">E-SURA</a>
+                    <a href="https://elearning.ispt.ac.mz/">Moodle ISPT</a>
                 </div>
                 <div class="footer-section">
                     <h4>Contacto</h4>

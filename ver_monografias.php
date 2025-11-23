@@ -648,7 +648,7 @@ Histórico de Downloads</a></li>
       <?php endif; ?>
     </div> <?php endif; ?>
 
-  </div> <?php endwhile; ?> ```
+  </div> <?php endwhile; ?>
 
 
 <script>
@@ -883,7 +883,7 @@ document.querySelectorAll('.btn-download').forEach(btn=>{
 
   btn.addEventListener('click', ()=> {
     btn.textContent = '⏳ Baixando...';
-    setTimeout(()=>btn.textContent='⬇️ Baixar',2500);
+    setTimeout(()=>btn.textContent='Download feito com sucesso',2500);
   });
 });
 </script>

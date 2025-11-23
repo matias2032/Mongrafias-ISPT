@@ -54,7 +54,7 @@ $result_destaques = $conexao->query($sql_destaques);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Restaurante Virtual | Início</title>
+    <title>Repositório de monografias do ISPT | Início</title>
     
     <link rel="stylesheet" href="css/index.css">
     <script src="js/darkmode1.js"></script>
@@ -195,10 +195,9 @@ $result_destaques = $conexao->query($sql_destaques);
                 </div>
                 <div class="footer-section">
                     <h4>Recursos</h4>
-                    <a href="#">Propinas</a>
-                    <a href="#">Formulários</a>
-                    <a href="#">E-SURA</a>
-                    <a href="#">Moodle ISPT</a>
+                    <a href="https://propinas.ispt.ac.mz/login.php">Propinas</a>
+                    <a href="https://esura.ispt.ac.mz/esura_ispt/">E-SURA</a>
+                    <a href="https://elearning.ispt.ac.mz/">Moodle ISPT</a>
                 </div>
                 <div class="footer-section">
                     <h4>Contacto</h4>
