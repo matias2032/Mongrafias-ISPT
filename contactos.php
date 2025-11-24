@@ -51,6 +51,7 @@ if ($banner_ativo) {
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="css/index.css">
     <link rel="stylesheet" href="css/contactos.css">
+     <link rel="stylesheet" href="css/creditos.css">
 </head>
 <body>
 
@@ -323,11 +324,24 @@ if ($banner_ativo) {
                     <p>Estrada Nacional nº 7, Km 1<br>Bairro Matundo, Tete</p>
                 </div>
             </div>
-            <div class="footer-bottom">
+               <div class="footer-bottom">
                 <p>&copy; 2025 Instituto Superior Politécnico de Tete. All Rights Reserved.</p>
-            </div>
+                
+                <div class="developer-credit">
+                    Desenvolvido por 
+                    <a href="https://wa.me/25887682594?text=Olá,%20Matias!%20Vi%20o%20teu%20trabalho%20no%20site%20do%20ISPT." target="_blank" class="developer-link">
+                        Matias Alberto Matavel
+                    </a>
+                </div>
+                </div>
         </div>
     </footer>
+
+       <a href="https://wa.me/258876821594" target="_blank" class="floating-credit-fab" title="Desenvolvido por Matias Alberto Matavel (Contacte via WhatsApp)">
+    Desenvolvido por 
+    <span class="developer-name">Matias Alberto Matavel</span>
+</a>
+
 
     <script>
     // Navegação Mobile

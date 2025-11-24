@@ -57,7 +57,9 @@ $result_destaques = $conexao->query($sql_destaques);
     <title>Repositório de monografias do ISPT | Início</title>
     
     <link rel="stylesheet" href="css/index.css">
+    <link rel="stylesheet" href="css/creditos.css">
     <script src="js/darkmode1.js"></script>
+
 
    
 </head>
@@ -206,11 +208,25 @@ $result_destaques = $conexao->query($sql_destaques);
                     <p>Estrada Nacional nº 7, Km 1<br>Bairro Matundo, Tete</p>
                 </div>
             </div>
+            
             <div class="footer-bottom">
                 <p>&copy; 2025 Instituto Superior Politécnico de Tete. All Rights Reserved.</p>
-            </div>
+                
+                <div class="developer-credit">
+                    Desenvolvido por 
+                    <a href="https://wa.me/25887682594?text=Olá,%20Matias!%20Vi%20o%20teu%20trabalho%20no%20site%20do%20ISPT." target="_blank" class="developer-link">
+                        Matias Alberto Matavel
+                    </a>
+                </div>
+                </div>
         </div>
     </footer>
+
+    <a href="https://wa.me/258876821594" target="_blank" class="floating-credit-fab" title="Desenvolvido por Matias Alberto Matavel (Contacte via WhatsApp)">
+    Desenvolvido por 
+    <span class="developer-name">Matias Alberto Matavel</span>
+</a>
+
 
 <script>
 const menuBtnMobile = document.getElementById("menuBtnMobile");
@@ -261,6 +277,7 @@ if (prevBtn) {
 
 showSlide(0);
 </script>
+
 
 </body>
 </html>
